@@ -1,5 +1,8 @@
 package demo.app.api;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.security.RolesAllowed;
 import java.time.Instant;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -13,6 +16,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 class GreetingsController {
 
+    @Tag(name = "APIs Management",
+            description = "APIs for user authentication.")
+    @Operation(description = "Get current user info by authentication and print greet message.")
     @ResponseStatus(HttpStatus.OK)
     @GetMapping("/api/greet/me")
     Object greetme(Authentication auth) {

@@ -35,6 +35,9 @@ class WebSecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         http.authorizeHttpRequests(arc -> {
+            // add permit for swagger docs resource
+            arc.requestMatchers("/swagger-ui/**", "/v3/**", "/swagger-ui.html", "/favicon.ico")
+                    .permitAll();
             // declarative route configuration
             arc.requestMatchers("/api/**").authenticated();
             // add additional routes
