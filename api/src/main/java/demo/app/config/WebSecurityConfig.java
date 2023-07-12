@@ -57,7 +57,12 @@ class WebSecurityConfig {
         });
 
         // use custom OpaqueTokenIntrospector
-        http.oauth2ResourceServer().opaqueToken().introspector(zitadelIntrospector());
+        http.oauth2ResourceServer(oauth2 ->
+                oauth2.opaqueToken(opaque ->
+                        opaque.introspector(zitadelIntrospector())
+                )
+        );
+
         return http.build();
     }
 

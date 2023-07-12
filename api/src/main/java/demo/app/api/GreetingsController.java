@@ -62,7 +62,9 @@ class GreetingsController {
     @Operation(description = "Get current user info by authentication and print greet message.")
     @ResponseStatus(HttpStatus.OK)
     @GetMapping("/api/greet/me3")
+    // 同时使用多个权限拦截，用户权限满足其中一个即可进入方法
     @Secured({"user","admin"})
+    @PreAuthorize("hasAnyAuthority('csp')")
     Object greetme3(Authentication auth) {
         var tokenAttributes = ((BearerTokenAuthentication) auth).getTokenAttributes();
         var message = "Greetings my friend " +
