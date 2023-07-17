@@ -1,5 +1,6 @@
 package demo.app.config;
 
+import demo.app.intropector.ZitadelAuthoritiesOpaqueTokenIntrospector;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -50,6 +51,7 @@ class WebSecurityConfig {
             // add permit for swagger docs resource
             arc.requestMatchers("/swagger-ui/**", "/v3/**", "/swagger-ui.html", "/favicon.ico")
                     .permitAll();
+            arc.requestMatchers("/auth/**").permitAll();
             // declarative route configuration
             arc.requestMatchers("/api/**").authenticated();
             // add additional routes

@@ -1,4 +1,4 @@
-package demo.app.config;
+package demo.app.intropector;
 
 
 import java.util.Collection;

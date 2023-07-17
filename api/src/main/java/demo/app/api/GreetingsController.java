@@ -11,10 +11,12 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.oidc.StandardClaimNames;
 import org.springframework.security.oauth2.server.resource.authentication.BearerTokenAuthentication;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+@CrossOrigin
 @RestController
 class GreetingsController {
 
@@ -63,7 +65,7 @@ class GreetingsController {
     @ResponseStatus(HttpStatus.OK)
     @GetMapping("/api/greet/me3")
     // 同时使用多个权限拦截，用户权限满足其中一个即可进入方法
-    @Secured({"user","admin"})
+    @Secured({"user", "admin"})
     @PreAuthorize("hasAnyAuthority('csp')")
     Object greetme3(Authentication auth) {
         var tokenAttributes = ((BearerTokenAuthentication) auth).getTokenAttributes();
