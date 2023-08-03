@@ -1,5 +1,7 @@
 package demo.app.config;
 
+import static org.springframework.web.cors.CorsConfiguration.ALL;
+
 import demo.app.intropector.ZitadelAuthoritiesOpaqueTokenIntrospector;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -9,8 +11,13 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.oauth2.server.resource.introspection.OpaqueTokenIntrospector;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.header.writers.frameoptions.XFrameOptionsHeaderWriter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
  * Configuration applied on all web endpoints defined for this
@@ -46,6 +53,15 @@ class WebSecurityConfig {
      */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http.csrf(AbstractHttpConfigurer::disable);
+
+        http.headers(headersConfigurer -> headersConfigurer.addHeaderWriter(
+                new XFrameOptionsHeaderWriter(
+                        XFrameOptionsHeaderWriter.XFrameOptionsMode.SAMEORIGIN)));
+
+        // accept cors requests and allow preflight checks
+        http.cors(httpSecurityCorsConfigurer -> httpSecurityCorsConfigurer.configurationSource(
+                corsConfigurationSource()));
 
         http.authorizeHttpRequests(arc -> {
             // add permit for swagger docs resource
@@ -85,6 +101,17 @@ class WebSecurityConfig {
     public OpaqueTokenIntrospector zitadelIntrospector() {
         return new ZitadelAuthoritiesOpaqueTokenIntrospector(this.introspectionUri, this.clientId,
                 this.clientSecret, this.loggingLevel);
+    }
+
+    CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowCredentials(true);
+        configuration.addAllowedHeader(ALL);
+        configuration.addAllowedMethod(ALL);
+        configuration.addAllowedOriginPattern(ALL);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
 }
