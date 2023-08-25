@@ -34,7 +34,8 @@ import org.springframework.context.annotation.Configuration;
                         scopes = {
                                 @OAuthScope(name = "openid"),
                                 @OAuthScope(name = "email"),
-                                @OAuthScope(name = "profile")
+                                @OAuthScope(name = "profile"),
+                                @OAuthScope(name = "urn:zitadel:iam:user:metadata")
                         }
                 )
         )
