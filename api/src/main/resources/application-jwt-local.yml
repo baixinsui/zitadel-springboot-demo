@@ -1,0 +1,1 @@
+authorization-server-endpoint: http://localhost:8081authorization-api-client-id: 229331353244598442@eclipse-xpanseauthorization-swagger-ui-client-id: 228632931332063402@eclipse-xpansekey.location: file:///rsa_public_key.pemspring:  security:    oauth2:      resourceserver:        jwt:          public-key-location: ${key.location}

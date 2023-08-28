@@ -1,17 +1,18 @@
 package demo.app.config;
 
-import static demo.app.config.ZitadelOauth2Constant.DEFAULT_ROLE;
-import static demo.app.config.ZitadelOauth2Constant.GRANTED_ROLES_KEY;
-import static demo.app.config.ZitadelOauth2Constant.USERID_KEY;
-import static demo.app.config.ZitadelOauth2Constant.USERNAME_KEY;
 import static org.springframework.web.cors.CorsConfiguration.ALL;
 
-import java.time.Duration;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.interfaces.RSAPublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,25 +22,26 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.oauth2.server.resource.OAuth2ResourceServerConfigurer;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
-import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtDecoders;
-import org.springframework.security.oauth2.jwt.JwtIssuerValidator;
-import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
+import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverterAdapter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.header.writers.frameoptions.XFrameOptionsHeaderWriter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import reactor.core.publisher.Mono;
 
 /**
  * Configuration applied on all web endpoints defined for this
@@ -52,15 +54,16 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  * 当使用@PreAuthorize("SPEL expression") 时,使用@EnableMethodSecurity(),默认配置开启了 prePostEnabled = true
  */
 @Slf4j
-@Profile("jwt")
+@Profile("jwt-local")
 @Configuration
 @RequiredArgsConstructor
 @EnableWebSecurity
+@EnableReactiveMethodSecurity
 @EnableMethodSecurity(securedEnabled = true, jsr250Enabled = true)
-public class WebSecurityJwtConfig {
+public class WebSecurityJwtLocalConfig {
 
-    @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}")
-    private String issuerUri;
+    @Value("${key.location}")
+    RSAPublicKey publicKey;
 
     /**
      * Configures basic security handler per HTTP session.
@@ -98,18 +101,11 @@ public class WebSecurityJwtConfig {
         return http.build();
     }
 
-
     @Bean
-    JwtDecoder jwtDecoder() {
-        NimbusJwtDecoder jwtDecoder = JwtDecoders.fromIssuerLocation(issuerUri);
-
-        OAuth2TokenValidator<Jwt> withClockSkew = new DelegatingOAuth2TokenValidator<>(
-                new JwtTimestampValidator(Duration.ofSeconds(60)),
-                new JwtIssuerValidator(issuerUri));
-
-        jwtDecoder.setJwtValidator(withClockSkew);
-
-        return jwtDecoder;
+    public ReactiveJwtDecoder jwtDecoder() {
+        return NimbusReactiveJwtDecoder.withPublicKey(this.publicKey)
+                .signatureAlgorithm(SignatureAlgorithm.RS256)
+                .build();
     }
 
     Converter<Jwt, ? extends AbstractAuthenticationToken> grantedAuthoritiesExtractor() {
@@ -135,19 +131,16 @@ public class WebSecurityJwtConfig {
             implements Converter<Jwt, Collection<GrantedAuthority>> {
 
         public Collection<GrantedAuthority> convert(Jwt jwt) {
-            Set<GrantedAuthority> roles;
-            String userName = jwt.getClaimAsString(USERNAME_KEY);
-            String userId = jwt.getClaimAsString(USERID_KEY);
-            Map<String, Object> rolesClaim = jwt.getClaim(GRANTED_ROLES_KEY);
-            if (Objects.isNull(rolesClaim) || rolesClaim.isEmpty()) {
-                roles = Set.of(new SimpleGrantedAuthority(DEFAULT_ROLE));
-                log.info("Get user [id:{},userName:{}] granted authorities is empty,"
-                        + " set default authority user", userId, userName);
+            Set<GrantedAuthority> roles = new HashSet<>();
+            Object rolesClaim =
+                    jwt.getClaims().getOrDefault("urn:zitadel:iam:org:project:roles", null);
+
+            if (Objects.isNull(rolesClaim)) {
+                roles.add(new SimpleGrantedAuthority("user"));
             } else {
-                roles = rolesClaim.keySet().stream().map(SimpleGrantedAuthority::new)
-                        .collect(Collectors.toSet());
-                log.info("Get user [id:{},userName:{}] granted authorities:{}.",
-                        userId, userName, roles);
+                Map<String, Object> rolesMap = (Map<String, Object>) rolesClaim;
+                rolesMap.keySet()
+                        .forEach(role -> roles.add(new SimpleGrantedAuthority(role)));
             }
             return roles;
         }
